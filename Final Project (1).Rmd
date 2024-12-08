@@ -1,0 +1,243 @@
+---
+title: "Final Project"
+output: html_document
+date: "2024-12-06"
+---
+ 
+For my final project, I want to examine Long COVID-19 symptoms and describe the attributes of those with long COVID, starting by pulling data from three articles about their symptoms.
+
+```{r setup, include=TRUE}
+install.packages("dplyr")
+install.packages("rvest")
+library(rvest)
+library(dplyr)
+
+link = "https://www.mayoclinic.org/diseases-conditions/coronavirus/in-depth/coronavirus-long-term-effects/art-20490351"
+page = read_html(link)
+
+name = page %>% html_nodes("ul:nth-child(20) li") %>% html_text()
+
+link2 = "https://my.clevelandclinic.org/health/diseases/25111-long-covid"
+page2 = read_html(link2)
+name2 = page2 %>% html_nodes(".my-rem32px+ .marker\\:pl-rem24px .leading-rem34px") %>% html_text()
+
+link3 = "https://www.yalemedicine.org/conditions/long-covid-post-covid-conditions-pcc"
+
+page3 = read_html(link3)
+name3 = page3 %>% html_nodes("p~ p+ ul li") %>% html_text()
+```
+
+I combined the symptoms from all three articles into a single dataframe and then categorized the data into physical, psychological, cardiovascular, gastrointestinal, and other categories.
+```{r cars, echo=TRUE}
+# Combine data into a single data frame
+data <- data.frame(
+  Article = c(rep("Mayo Clinic", length(name)),
+              rep("Cleveland Clinic", length(name2)),
+              rep("Yale Medicine", length(name3))),
+  Content = c(name, name2, name3),
+  stringsAsFactors = FALSE
+)
+
+data = data %>%
+  mutate(Category = case_when(
+    # Physical symptoms
+    grepl("heart|headaches|cough|pain|diabetes|fibromyalgia|stroke|fatigue|muscle|joint|swelling|back|fever|shortness of breath|sleep apnea", Content, ignore.case = TRUE) ~ "Physical",
+    
+    # Psychological symptoms
+    grepl("mood|anxiety|brain fog|depression|mental", Content, ignore.case = TRUE) ~ "Psychological",
+    
+    # Cardiovascular symptoms
+    grepl("heart disease|palpitations|stroke|blood clots|cardiac", Content, ignore.case = TRUE) ~ "Cardiovascular",
+    
+    # Gastrointestinal symptoms
+    grepl("gastrointestinal|diarrhea|constipation|stomach pain", Content, ignore.case = TRUE) ~ "Gastrointestinal",
+    
+    # For anything else, classify it as Other
+    TRUE ~ "Other"
+  ))
+
+
+
+
+
+```
+
+I then created a category count from the article data and visualized the results. From the analysis, the 'Other' category had a count of 26 (39.9%), followed by 'Physical' symptoms, which had the highest count at 28 (42.42%). 'Psychological' symptoms were observed with a count of 10 (15.15%), and both 'Cardiovascular' and 'Gastrointestinal' symptoms had a count of 1. 
+
+```{r pressure1, echo=TRUE}
+
+# Calculate the percentage breakdown of each category
+category_count <- data %>%
+  group_by(Category) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = (count / sum(count)) * 100)
+
+# Print the category count and percentages
+print(category_count)
+
+install.packages("ggplot2")
+library(ggplot2)
+
+# Create a bar plot to visualize the category distribution
+ggplot(category_count, aes(x = Category, y = percentage, fill = Category)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Percentage Breakdown of Symptoms by Category", 
+       x = "Category", 
+       y = "Percentage (%)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+From this analysis, my research question becomes clear:
+Using a dataset, can we replicate the symptom categories observed in the web-scraped article data?
+Would the same breakdown of symptom categories appear in the dataset as we saw in the articles?
+Additionally, how might demographic factors, such as age, influence the distribution of these categories?
+
+
+In this section, I read in data about long COVID symptoms from participants in Bangladesh. The data was self-reported and included information about demographics, comorbid conditions, and post-COVID symptoms. The dataset was further filtered to focus only on post-COVID symptoms, as well as age and gender. Missing values (NA) were removed, and the symptoms were categorized into physical, gastrointestinal, psychological, and other categories. A count was created for each category, and the results were visualized. From the analysis, we observed that the most frequent symptoms were in the "Other" category (76 counts), followed by "Physical" (105 counts), with "Psychological" symptoms showing only 1 count.
+
+```{r pressure2, echo=TRUE}
+#install.packages("haven")
+installed.packages("dpylr")
+library(haven)
+long_covid <- read_sav("C:/Users/Daniel.Brusche/Downloads/Long COVID, Mendeley.sav")
+
+library(dplyr)
+
+long_covid_cleaned <- long_covid %>%
+  select(ID_No, interval_RTPCR_interview_days, `Q2_Age##`, `Q3_Sex##`, 
+         Q30.a_Post_covid_Cough, Q30.b_Post_covid_Fatigue_weakness, 
+         Q30.c_Post_covid_Sleep_disturbance, Q30.d_Post_covid_Sore_throat, 
+         Q30.e_Post_covid_Sputum_production, Q30.f_Post_covid_Difficulty_in_breathing, 
+         Q30.g_Post_covid_chest_tightness, Q30.h_Post_covid_Chest_pain, 
+         Q30.i_Post_covid_Palpitation, Q30.j_Post_covid_Runny_nose, 
+         Q30.k_Post_covid_Anosmia, Q30.l_Post_covid_Loss_of_taste_sensation, 
+         Q30.m_Post_covid_Nausea, Q30.n_Post_covid_Vomiting, Q30.o_Post_covid_Diarrhea, 
+         Q30.p_Post_covid_Abdominal_pain, Q30.q_Post_covid_Loss_of_appetite, 
+         Q30.r_Post_covid_Joint_pain, Q30.s_Post_covid_Myalgia_body_ache, 
+         Q30.t_Post_covid_Headache, Q30.u_Post_covid_Generalized_itching, 
+         Q30.v_Post_covid_Rash, Q30.w_Post_covid_red_eye, Q30.x_Post_covid_Irritability, 
+         Q30.y_Post_covid_Lack_of_concentration, Q30.z_Post_covid_Memory_loss, 
+         Q30.a.i_Post_covid_Weight_loss, Q30.post_covid_Hair_fall)
+
+# Install tidyr if not already installed
+install.packages("tidyr")
+
+# Load tidyr
+library(tidyr)
+
+
+# Remove rows with any missing values in the selected columns
+long_covid_cleaned <- long_covid_cleaned %>%
+  drop_na()
+
+
+# Categorize symptoms based on the Q30 columns
+long_covid_subset_clean <- long_covid_cleaned %>%
+  mutate(
+    # Create a new column for 'Category' based on presence (1) or absence (0) of symptoms
+    Category = case_when(
+      # Physical symptoms: Fatigue, cough, chest pain, difficulty breathing, etc.
+      Q30.b_Post_covid_Fatigue_weakness == 1 | 
+      Q30.a_Post_covid_Cough == 1 | 
+      Q30.f_Post_covid_Difficulty_in_breathing == 1 |
+      Q30.s_Post_covid_Myalgia_body_ache == 1 | 
+      Q30.t_Post_covid_Headache == 1 | 
+      Q30.g_Post_covid_chest_tightness == 1 | 
+      Q30.h_Post_covid_Chest_pain == 1 |
+      Q30.p_Post_covid_Abdominal_pain == 1 | 
+      Q30.r_Post_covid_Joint_pain == 1 ~ "Physical",
+      
+      # Psychological symptoms: Irritability, memory loss, lack of concentration, etc.
+      Q30.x_Post_covid_Irritability == 1 | 
+      Q30.y_Post_covid_Lack_of_concentration == 1 | 
+      Q30.z_Post_covid_Memory_loss == 1 | 
+      Q30.w_Post_covid_red_eye == 1 ~ "Psychological",
+      
+      # Gastrointestinal symptoms: Nausea, vomiting, diarrhea, etc.
+      Q30.o_Post_covid_Diarrhea == 1 | 
+      Q30.m_Post_covid_Nausea == 1 | 
+      Q30.n_Post_covid_Vomiting == 1 ~ "Gastrointestinal",
+      
+      # Other: Any symptom that doesn't fit into the categories above
+      TRUE ~ "Other"
+    )
+  )
+
+
+# Count the number of people with each category of long-term symptoms
+table(long_covid_subset_clean$Category)
+
+
+# Visualize the prevalence of long COVID symptoms
+library(ggplot2)
+
+ggplot(long_covid_subset_clean, aes(x = Category)) +
+  geom_bar() +
+  labs(title = "Distribution of Long COVID Symptoms",
+       x = "Symptom Category",
+       y = "Count")
+
+
+```
+We further want to investigate how age plays a part in the breakdown of symptoms. Age was broken down into four categories, and a count of symptoms was created and visualized. What we observe is that individuals between the ages of 18-30 and 31-45 reported more physical, other, and psychosocial symptoms compared to older groups (46-60 and 61+).
+```{r pressure2, echo=TRUE}
+#install.packages("tidyr")
+library(tidyr)
+# Load necessary libraries
+library(dplyr)
+library(ggplot2)
+
+
+# Create an age group column
+long_covid_subset_clean <- long_covid_subset_clean %>%
+  mutate(age_group = case_when(
+    `Q2_Age##` >= 18 & `Q2_Age##` <= 30 ~ "18-30",
+    `Q2_Age##` >= 31 & `Q2_Age##` <= 45 ~ "31-45",
+    `Q2_Age##` >= 46 & `Q2_Age##` <= 60 ~ "46-60",
+    `Q2_Age##` >= 61 ~ "61+",
+    TRUE ~ "Unknown"
+  ))
+
+# Count symptoms by age group
+long_covid_symptom_count <- long_covid_subset_clean %>%
+  select(age_group, starts_with("Q30")) %>%  # Select symptom columns
+  pivot_longer(cols = starts_with("Q30"), names_to = "symptom", values_to = "presence") %>%
+  filter(presence == 1) %>%  # Only include rows where the symptom is present (1)
+  count(age_group, symptom)  # Count the occurrences of each symptom by age group
+
+# Load necessary libraries
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+# Create symptom categories (e.g., physical, psychological, etc.)
+Long_covid_symptoms <- long_covid_symptom_count %>%
+  mutate(symptom_category = case_when(
+    grepl("Cough|Fatigue|Sleep disturbance|Sore throat|Sputum|Breathing difficulty|Chest tightness|Chest pain|Palpitation|Runny nose|Nausea|Vomiting|Diarrhea|Abdominal pain|Joint pain|Myalgia|Headache", symptom) ~ "Physical",
+    grepl("Anosmia|Loss of taste|Hair fall|Loss of appetite|Irritability|Lack of concentration|Memory loss|Weight loss", symptom) ~ "Psychological",
+    TRUE ~ "Other"
+  ))
+
+# Count symptoms by age group and category
+symptom_counts <- Long_covid_symptoms %>%
+  select(age_group, symptom, symptom_category) %>%
+  group_by(age_group, symptom_category) %>%
+  count() %>%
+  arrange(age_group, desc(n))
+
+# Visualize the count of symptoms by category and age group
+ggplot(symptom_counts, aes(x = age_group, y = n, fill = symptom_category)) +
+  geom_bar(stat = "identity", position = "stack") +
+  theme_minimal() +
+  labs(title = "Count of Long COVID Symptoms by Age Group and Category",
+       x = "Age Group",
+       y = "Count of Symptoms",
+       fill = "Symptom Category") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for readability
+
+
+
+
+```
+
+In conclusion, from the articles, we observed that physical symptoms were the most apparent. This trend was also reflected in our dataset, following a similar pattern. When examining demographic features such as age, we see that age plays a role in how symptoms are categorized. The younger population is shown to experience more physical, other, and psychological symptoms.
